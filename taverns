@@ -201,7 +201,8 @@ VALUES
 	('Barkeep','I dont mind serving up a few cocktails'),
 	('Rogue','Nobody will notice if their change is a little short'),
 	('Witch','Patrons find my charm to be absolutely enchanting'),
-	('Musician','Nothing like a lively tune to help the drinks flow'); 
+	('Musician','Nothing like a lively tune to help the drinks flow'), 
+	('Admin','Someone needs to make sure things run smoothly');
 GO
 
 INSERT INTO Owners
@@ -211,7 +212,7 @@ VALUES
 	('Jeksera',3),
 	('Stanchion',4),
 	('Madam Rosmerta',3),
-	('Chalmun',1); 
+	('Chalmun',5); 
 GO
 
 INSERT INTO Taverns
@@ -323,7 +324,7 @@ VALUES
 	(2,5,1),
 	(3,4,3),
 	(4,3,11),
-	(4,4,5);
+	(4,4,6);
 GO
 
 INSERT INTO RoomStays
@@ -337,53 +338,93 @@ GO
 
 
 --1
-SELECT * FROM Guests
-WHERE YEAR(Birthday) < 2000;
+SELECT Owners.* FROM Owners
+JOIN Roles ON (Owners.RoleID = Roles.ID)
+Where Roles.Name = 'Admin'
 
 --2
-SELECT Rooms.* FROM Rooms
-JOIN RoomStays ON Rooms.ID = RoomStays.RoomID
-WHERE RoomStays.Price > 100;
+SELECT Owners.*, Taverns.* FROM Owners
+JOIN Roles ON (Owners.RoleID = Roles.ID)
+JOIN Taverns ON (Taverns.OwnerID = Owners.ID)
+Where Roles.Name = 'Admin'
 
 --3
-SELECT DISTINCT Name FROM Guests;
+SELECT Guests.Name, ISNULL(Classes.Name, 'Like school in the summertime') AS 'Class', ISNULL(GuestsClasses.ClassLevel, 0) AS 'Level' FROM Guests
+LEFT JOIN GuestsClasses ON (Guests.ID = GuestsClasses.GuestID)
+LEFT JOIN Classes ON (GuestsClasses.ClassID = Classes.ID)
+ORDER BY Guests.Name ASC
 
 --4
-SELECT * FROM Guests
-ORDER BY Name ASC;
-
---5
-SELECT TOP 10 * FROM ServiceSales
+SELECT TOP 10 ServiceSales.*, Services.Name AS 'Service' FROM ServiceSales
+JOIN Services ON (ServiceSales.ServiceID = Services.ID)
 ORDER BY Price DESC;
 
+--5
+SELECT Guests.Name, COUNT(Classes.Name) AS '# of Classes' FROM Classes
+JOIN GuestsClasses ON (Classes.ID = GuestsClasses.ClassID)
+JOIN Guests ON (GuestsClasses.GuestID = Guests.ID)
+GROUP BY Guests.Name
+HAVING COUNT(Classes.Name) > 1
+
 --6
-SELECT *, 'Locations' AS 'Table' FROM Locations
-UNION ALL
-SELECT *, 'ServiceStatus' AS 'Table' FROM ServiceStatus
-UNION ALL
-SELECT *, 'GuestStatus' AS 'Table' FROM GuestStatus
-UNION ALL
-SELECT *, 'Classes' AS 'Table' FROM Classes;
+SELECT Guests.Name, COUNT(Classes.Name) AS '# of High Classes' FROM Classes
+JOIN GuestsClasses ON (Classes.ID = GuestsClasses.ClassID)
+JOIN Guests ON (GuestsClasses.GuestID = Guests.ID)
+WHERE GuestsClasses.ClassLevel > 5
+GROUP BY Guests.Name
+HAVING COUNT(Classes.Name) > 1
 
 --7
-SELECT *, 'Newbie' AS 'Label' FROM GuestsClasses
-WHERE ClassLevel < 5
-UNION ALL
-SELECT *, 'Intermediate' AS 'Label' FROM GuestsClasses
-WHERE ClassLevel BETWEEN 5 AND 10
-UNION ALL
-SELECT *, 'Expert' AS 'Label' FROM GuestsClasses
-WHERE ClassLevel > 10
-ORDER BY GuestID;
+SELECT Guests.Name, MAX(GuestsClasses.ClassLevel) AS 'Highest Level' FROM Guests
+JOIN GuestsClasses ON (Guests.ID = GuestsClasses.GuestID)
+JOIN Classes ON (GuestsClasses.ClassID = Classes.ID)
+GROUP BY Guests.Name
 
 --8
-SELECT CONCAT('INSERT INTO ',TABLE_NAME,' (Name) VALUES') FROM INFORMATION_SCHEMA.TABLES
-WHERE TABLE_NAME = 'ServiceStatus'
+SELECT Guests.Name, RoomStays.DateStayed, RoomStays.Price FROM Guests
+JOIN RoomStays ON (Guests.ID = RoomStays.GuestID)
+WHERE RoomStays.DateStayed BETWEEN '2000-01-01' AND '2009-12-31'
+
+--9
+SELECT CONCAT('CREATE TABLE ',TABLE_NAME,' (') FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_NAME = 'Taverns'
 UNION ALL
-SELECT CONCAT('(''',StatusName,'''),') FROM GuestStatus
-WHERE ID BETWEEN 1 AND 3
+SELECT CONCAT(cols.COLUMN_NAME, ' ', cols.DATA_TYPE, 
+(
+	CASE WHEN CHARACTER_MAXIMUM_LENGTH IS NOT NULL 
+	THEN CONCAT
+		('(', CHARACTER_MAXIMUM_LENGTH, ')') 
+	ELSE '' 
+	END) 
+,
+	CASE WHEN cols.COLUMN_NAME = 'ID'
+	THEN
+		(' IDENTITY (1,1)')
+	ELSE ''
+	END
+,
+	CASE WHEN tableConst.CONSTRAINT_TYPE = 'PRIMARY KEY'
+	THEN
+		(' PRIMARY KEY')
+	ELSE ''
+	END
+,
+	CASE WHEN refConst.CONSTRAINT_NAME IS NOT NULL
+	THEN CONCAT
+		(' FOREIGN KEY REFERENCES ', constKeys.TABLE_NAME, '(', constKeys.COLUMN_NAME, ')')
+	ELSE ''
+	END
+, ',') FROM INFORMATION_SCHEMA.COLUMNS AS cols
+LEFT JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE AS keys ON
+(keys.TABLE_NAME = cols.TABLE_NAME and keys.COLUMN_NAME = cols.COLUMN_NAME)
+LEFT JOIN INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS AS refConst ON
+(refConst.CONSTRAINT_NAME = keys.CONSTRAINT_NAME)
+LEFT JOIN
+(SELECT DISTINCT CONSTRAINT_NAME, TABLE_NAME, COLUMN_NAME
+FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE) AS constKeys
+ON (constKeys.CONSTRAINT_NAME = refConst.UNIQUE_CONSTRAINT_NAME)
+LEFT JOIN INFORMATION_SCHEMA.TABLE_CONSTRAINTS AS tableConst ON
+(tableConst.CONSTRAINT_NAME = keys.CONSTRAINT_NAME)
+WHERE cols.TABLE_NAME = 'Taverns'
 UNION ALL
-SELECT CONCAT('(''',StatusName,''');') FROM GuestStatus
-WHERE ID = 4
-UNION ALL
-SELECT 'GO';
+SELECT ');'
