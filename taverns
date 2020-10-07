@@ -92,6 +92,7 @@ CREATE TABLE Rooms (
 	Beds tinyint NOT NULL,
 	Status varchar(255) NOT NULL,
 	TavernID int NOT NULL FOREIGN KEY REFERENCES Taverns(ID),
+	Price decimal(6,2) NOT NULL
 );
 GO
 
@@ -171,8 +172,7 @@ CREATE TABLE RoomStays (
 	ID int IDENTITY(1,1) PRIMARY KEY,
 	RoomID int NOT NULL FOREIGN KEY REFERENCES Rooms(ID),
 	GuestID int NOT NULL FOREIGN KEY REFERENCES Guests(ID),
-	DateStayed date NOT NULL,
-	Price decimal(6,2) NOT NULL
+	DateStayed date NOT NULL
 );
 GO
 
@@ -227,10 +227,10 @@ GO
 
 INSERT INTO Rooms
 VALUES
-	(5,'Unavailable',1),
-	(2,'Vacant',2),
-	(2,'Occupied',2),
-	(1,'Uncomfortable',3);
+	(5,'Unavailable',1,220.00),
+	(2,'Vacant',2,87.65),
+	(2,'Occupied',2,102.94),
+	(1,'Uncomfortable',3,66.66);
 GO
 
 INSERT INTO Inventory
@@ -329,102 +329,132 @@ GO
 
 INSERT INTO RoomStays
 VALUES
-	(1,1,'2001-12-19',220.00),
-	(2,2,'2008-09-17',63.00),
-	(2,2,'2010-09-17',65.00),
-	(3,3,'2020-09-28',74.00),
-	(4,3,'1980-01-20',35.00);
+	(1,1,'2001-12-19'),
+	(2,2,'2008-09-17'),
+	(2,2,'2010-09-17'),
+	(3,3,'2020-09-28'),
+	(4,3,'1980-01-20');
 GO
 
 
 --1
-SELECT Owners.* FROM Owners
-JOIN Roles ON (Owners.RoleID = Roles.ID)
-Where Roles.Name = 'Admin'
+SELECT Owners.ID, Owners.Name, Roles.Name AS 'Role', Roles.Description FROM Owners
+LEFT JOIN Roles ON (Owners.RoleID = Roles.ID)
+
 
 --2
-SELECT Owners.*, Taverns.* FROM Owners
-JOIN Roles ON (Owners.RoleID = Roles.ID)
-JOIN Taverns ON (Taverns.OwnerID = Owners.ID)
-Where Roles.Name = 'Admin'
+SELECT Classes.ID, Classes.Name AS 'Class', COUNT(Guests.Name) AS '# of Guests' FROM Classes
+LEFT JOIN GuestsClasses ON (Classes.ID = GuestsClasses.ClassID)
+LEFT JOIN Guests ON (GuestsClasses.GuestID = Guests.ID)
+GROUP BY Classes.ID, Classes.Name
+
 
 --3
-SELECT Guests.Name, ISNULL(Classes.Name, 'Like school in the summertime') AS 'Class', ISNULL(GuestsClasses.ClassLevel, 0) AS 'Level' FROM Guests
+SELECT Guests.Name, ISNULL(Classes.Name, 'No Class') AS 'Class', ISNULL(GuestsClasses.ClassLevel, 0) AS 'Level', (
+	CASE WHEN ClassLevel < 5
+	THEN
+		'Beginner'
+	WHEN ClassLevel BETWEEN 5 AND 10
+	THEN
+		'Intermediate'
+	WHEN ClassLevel > 10
+	THEN
+		'Expert'
+	ELSE
+		'No Class'
+	END) AS 'Label'
+FROM Guests
 LEFT JOIN GuestsClasses ON (Guests.ID = GuestsClasses.GuestID)
 LEFT JOIN Classes ON (GuestsClasses.ClassID = Classes.ID)
 ORDER BY Guests.Name ASC
 
+
 --4
-SELECT TOP 10 ServiceSales.*, Services.Name AS 'Service' FROM ServiceSales
-JOIN Services ON (ServiceSales.ServiceID = Services.ID)
-ORDER BY Price DESC;
+IF OBJECT_ID (N'dbo.getLevelGroup', N'FN') IS NOT NULL  
+    DROP FUNCTION dbo.getLevelGroup;  
+GO  
+CREATE FUNCTION dbo.getLevelGroup(@Level int)
+RETURNS varchar(20)
+AS
+BEGIN
+	DECLARE @ret varchar(20)
+	SELECT @ret = (CASE 
+	WHEN @Level < 5
+	THEN
+		'Beginner'
+	WHEN @Level BETWEEN 5 AND 10
+	THEN
+		'Intermediate'
+	WHEN @Level > 10
+	THEN
+		'Expert'
+	ELSE
+		'No Class'
+	END)
+	RETURN @ret;
+END;
+
+--Function in use
+SELECT Guests.Name, ISNULL(Classes.Name, 'No Class') AS 'Class', ISNULL(GuestsClasses.ClassLevel, 0) AS 'Level', dbo.getLevelGroup(GuestsClasses.ClassLevel) AS 'Label'
+FROM Guests
+LEFT JOIN GuestsClasses ON (Guests.ID = GuestsClasses.GuestID)
+LEFT JOIN Classes ON (GuestsClasses.ClassID = Classes.ID)
+ORDER BY Guests.Name ASC
+
 
 --5
-SELECT Guests.Name, COUNT(Classes.Name) AS '# of Classes' FROM Classes
-JOIN GuestsClasses ON (Classes.ID = GuestsClasses.ClassID)
-JOIN Guests ON (GuestsClasses.GuestID = Guests.ID)
-GROUP BY Guests.Name
-HAVING COUNT(Classes.Name) > 1
+IF OBJECT_ID (N'dbo.getOpenRooms', N'IF') IS NOT NULL  
+    DROP FUNCTION dbo.getOpenRooms;  
+GO  
+CREATE FUNCTION dbo.getOpenRooms (@Date date)  
+RETURNS TABLE  
+AS                
+RETURN   
+(
+	SELECT DISTINCT Rooms.ID AS 'Room ID', Rooms.Price, Taverns.Name AS 'Tavern' FROM Rooms
+	LEFT JOIN Taverns ON (Rooms.TavernID = Taverns.ID)
+	LEFT JOIN RoomStays ON (Rooms.ID = RoomStays.RoomID)
+	WHERE RoomStays.DateStayed != @Date
+);
+
+--Function in use
+SELECT * FROM dbo.getOpenRooms('2001-12-19')
+
 
 --6
-SELECT Guests.Name, COUNT(Classes.Name) AS '# of High Classes' FROM Classes
-JOIN GuestsClasses ON (Classes.ID = GuestsClasses.ClassID)
-JOIN Guests ON (GuestsClasses.GuestID = Guests.ID)
-WHERE GuestsClasses.ClassLevel > 5
-GROUP BY Guests.Name
-HAVING COUNT(Classes.Name) > 1
+IF OBJECT_ID (N'dbo.getPricedRooms', N'IF') IS NOT NULL  
+    DROP FUNCTION dbo.getPricedRooms;  
+GO  
+CREATE FUNCTION dbo.getPricedRooms (@minPrice decimal(6,2), @maxPrice decimal(6,2))  
+RETURNS TABLE  
+AS                
+RETURN   
+(
+	SELECT DISTINCT Rooms.ID AS 'Room ID', Rooms.Price, Rooms.TavernID, Taverns.Name AS 'Tavern Name' FROM Rooms
+	LEFT JOIN Taverns ON (Rooms.TavernID = Taverns.ID)
+	WHERE Rooms.Price BETWEEN @minPrice AND @maxPrice
+);
+
+--Function in use
+SELECT * FROM dbo.getPricedRooms(66.67, 219.99)
+
 
 --7
-SELECT Guests.Name, MAX(GuestsClasses.ClassLevel) AS 'Highest Level' FROM Guests
-JOIN GuestsClasses ON (Guests.ID = GuestsClasses.GuestID)
-JOIN Classes ON (GuestsClasses.ClassID = Classes.ID)
-GROUP BY Guests.Name
-
---8
-SELECT Guests.Name, RoomStays.DateStayed, RoomStays.Price FROM Guests
-JOIN RoomStays ON (Guests.ID = RoomStays.GuestID)
-WHERE RoomStays.DateStayed BETWEEN '2000-01-01' AND '2009-12-31'
-
---9
-SELECT CONCAT('CREATE TABLE ',TABLE_NAME,' (') FROM INFORMATION_SCHEMA.TABLES
-WHERE TABLE_NAME = 'Taverns'
+SELECT 'INSERT INTO Rooms' AS cheaperRoom
 UNION ALL
-SELECT CONCAT(cols.COLUMN_NAME, ' ', cols.DATA_TYPE, 
-(
-	CASE WHEN CHARACTER_MAXIMUM_LENGTH IS NOT NULL 
-	THEN CONCAT
-		('(', CHARACTER_MAXIMUM_LENGTH, ')') 
-	ELSE '' 
-	END) 
-,
-	CASE WHEN cols.COLUMN_NAME = 'ID'
+SELECT CONCAT(
+	'VALUES (2,''Vacant'','
+, 
+	(CASE WHEN roomList.TavernID = 1
 	THEN
-		(' IDENTITY (1,1)')
-	ELSE ''
-	END
+		'2,'
+	ELSE
+		'1,'
+	END)
 ,
-	CASE WHEN tableConst.CONSTRAINT_TYPE = 'PRIMARY KEY'
-	THEN
-		(' PRIMARY KEY')
-	ELSE ''
-	END
+	(Price
+	)-0.01
 ,
-	CASE WHEN refConst.CONSTRAINT_NAME IS NOT NULL
-	THEN CONCAT
-		(' FOREIGN KEY REFERENCES ', constKeys.TABLE_NAME, '(', constKeys.COLUMN_NAME, ')')
-	ELSE ''
-	END
-, ',') FROM INFORMATION_SCHEMA.COLUMNS AS cols
-LEFT JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE AS keys ON
-(keys.TABLE_NAME = cols.TABLE_NAME and keys.COLUMN_NAME = cols.COLUMN_NAME)
-LEFT JOIN INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS AS refConst ON
-(refConst.CONSTRAINT_NAME = keys.CONSTRAINT_NAME)
-LEFT JOIN
-(SELECT DISTINCT CONSTRAINT_NAME, TABLE_NAME, COLUMN_NAME
-FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE) AS constKeys
-ON (constKeys.CONSTRAINT_NAME = refConst.UNIQUE_CONSTRAINT_NAME)
-LEFT JOIN INFORMATION_SCHEMA.TABLE_CONSTRAINTS AS tableConst ON
-(tableConst.CONSTRAINT_NAME = keys.CONSTRAINT_NAME)
-WHERE cols.TABLE_NAME = 'Taverns'
-UNION ALL
-SELECT ');'
+	');'
+) FROM dbo.getPricedRooms(66.67, 220.00) AS roomList
+WHERE Price = (SELECT Min(Price) FROM dbo.getPricedRooms(66.67, 220.00))
