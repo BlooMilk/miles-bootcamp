@@ -1,5 +1,7 @@
 DROP TABLE IF EXISTS RoomStays; 
 GO
+DROP TABLE IF EXISTS ServiceSales; 
+GO
 DROP TABLE IF EXISTS GuestsClasses; 
 GO
 DROP TABLE IF EXISTS Classes; 
@@ -8,8 +10,6 @@ DROP TABLE IF EXISTS Guests;
 GO
 DROP TABLE IF EXISTS GuestStatus; 
 GO
-DROP TABLE IF EXISTS ServiceSales; 
-GO
 DROP TABLE IF EXISTS Services; 
 GO
 DROP TABLE IF EXISTS ServiceStatus; 
@@ -17,6 +17,8 @@ GO
 DROP TABLE IF EXISTS SupplyReceipts; 
 GO
 DROP TABLE IF EXISTS Inventory; 
+GO
+DROP TABLE IF EXISTS SupplySales; 
 GO
 DROP TABLE IF EXISTS Rooms; 
 GO
@@ -96,6 +98,14 @@ CREATE TABLE Rooms (
 );
 GO
 
+CREATE TABLE SupplySales (
+	ID int IDENTITY(1,1) PRIMARY KEY,
+	SupplyID int NOT NULL FOREIGN KEY REFERENCES Supply(ID),
+	TavernID int NOT NULL FOREIGN KEY REFERENCES Taverns(ID),
+	Quantity int NOT NULL
+);
+GO
+
 CREATE TABLE Inventory (
 	ID int IDENTITY(1,1) PRIMARY KEY,
 	SupplyID int NOT NULL FOREIGN KEY REFERENCES Supply(ID),
@@ -129,16 +139,6 @@ CREATE TABLE Services (
 ); 
 GO
 
-CREATE TABLE ServiceSales (
-	ID int IDENTITY(1,1) PRIMARY KEY,
-	ServiceID int NOT NULL FOREIGN KEY REFERENCES Services(ID),
-	Guest varchar(255) NOT NULL,
-	AmountPurchased int NOT NULL,
-	Price decimal(9,2) NOT NULL,
-	DatePurchased date NOT NULL,	
-); 
-GO
-
 CREATE TABLE GuestStatus (
 	ID int IDENTITY(1,1) PRIMARY KEY,
 	StatusName varchar(255) NOT NULL UNIQUE
@@ -165,6 +165,16 @@ CREATE TABLE GuestsClasses (
 	GuestID int NOT NULL FOREIGN KEY REFERENCES Guests(ID),
 	ClassID int NOT NULL FOREIGN KEY REFERENCES Classes(ID),
 	ClassLevel int NOT NULL
+); 
+GO
+
+CREATE TABLE ServiceSales (
+	ID int IDENTITY(1,1) PRIMARY KEY,
+	ServiceID int NOT NULL FOREIGN KEY REFERENCES Services(ID),
+	GuestID int NOT NULL FOREIGN KEY REFERENCES Guests(ID),
+	AmountPurchased int NOT NULL,
+	Price decimal(9,2) NOT NULL,
+	DatePurchased date NOT NULL,	
 ); 
 GO
 
@@ -276,21 +286,6 @@ VALUES
 	('Droid Service',3,6); 
 GO
 
-INSERT INTO ServiceSales
-VALUES 
-	(1,'Gandalf',1,44.00,'2001-06-28'),
-	(1,'Strider',5,220.00,'2001-12-19'),
-	(2,'Eleanor',10,534.89,'2016-09-16'),
-	(3,'Kvothe',1,50.00,'2007-03-27'),
-	(4,'Luke',2,20.50,'1977-05-25'),
-	(2,'Chidi',1,25.00,'2017-01-01'),
-	(2,'Tahani',3,200.73,'2016-10-10'),
-	(2,'Jason',22,1058.92,'2016-11-11'),
-	(3,'Denna',1,50.00,'2007-05-12'),
-	(3,'Fela',1,50.00,'2006-12-01'),
-	(3,'Simmon',2,100.00,'2008-03-28');
-GO
-
 INSERT INTO GuestStatus
 VALUES
 	('Hungry'),
@@ -327,6 +322,21 @@ VALUES
 	(4,4,6);
 GO
 
+INSERT INTO ServiceSales
+VALUES 
+	(1,1,1,44.00,'2001-06-28'),
+	(1,1,5,220.00,'2001-12-19'),
+	(2,2,10,534.89,'2016-09-16'),
+	(3,1,1,50.00,'2007-03-27'),
+	(4,4,2,20.50,'1977-05-25'),
+	(2,3,1,25.00,'2017-01-01'),
+	(2,4,3,200.73,'2016-10-10'),
+	(2,5,22,1058.92,'2016-11-11'),
+	(3,3,1,50.00,'2007-05-12'),
+	(3,5,1,50.00,'2006-12-01'),
+	(3,2,2,100.00,'2008-03-28');
+GO
+
 INSERT INTO RoomStays
 VALUES
 	(1,1,'2001-12-19'),
@@ -338,71 +348,80 @@ GO
 
 
 --1
-SELECT Owners.ID, Owners.Name, Roles.Name AS 'Role', Roles.Description FROM Owners
-LEFT JOIN Roles ON (Owners.RoleID = Roles.ID)
+DROP PROCEDURE IF EXISTS CheckClass
+GO
+CREATE PROCEDURE CheckClass
+@Class varchar(30)
+AS SELECT Guests.Name, GuestsClasses.ClassLevel FROM GuestsClasses
+JOIN Guests ON (GuestsClasses.GuestID = Guests.ID)
+JOIN Classes ON (GuestsClasses.ClassID = Classes.ID)
+WHERE Classes.Name = @Class
 
 
 --2
-SELECT Classes.ID, Classes.Name AS 'Class', COUNT(Guests.Name) AS '# of Guests' FROM Classes
-LEFT JOIN GuestsClasses ON (Classes.ID = GuestsClasses.ClassID)
-LEFT JOIN Guests ON (GuestsClasses.GuestID = Guests.ID)
-GROUP BY Classes.ID, Classes.Name
+DROP PROCEDURE IF EXISTS TotalGuestSpent
+GO
+CREATE PROCEDURE TotalGuestSpent
+@GuestID int
+AS SELECT Guests.Name, SUM(ServiceSales.Price) AS 'totalSpent' FROM Guests
+JOIN ServiceSales ON (Guests.ID = ServiceSales.GuestID)
+WHERE Guests.ID = @GuestID
+GROUP BY Guests.Name
 
 
 --3
-SELECT Guests.Name, ISNULL(Classes.Name, 'No Class') AS 'Class', ISNULL(GuestsClasses.ClassLevel, 0) AS 'Level', (
-	CASE WHEN ClassLevel < 5
-	THEN
-		'Beginner'
-	WHEN ClassLevel BETWEEN 5 AND 10
-	THEN
-		'Intermediate'
-	WHEN ClassLevel > 10
-	THEN
-		'Expert'
-	ELSE
-		'No Class'
-	END) AS 'Label'
-FROM Guests
-LEFT JOIN GuestsClasses ON (Guests.ID = GuestsClasses.GuestID)
-LEFT JOIN Classes ON (GuestsClasses.ClassID = Classes.ID)
-ORDER BY Guests.Name ASC
-
-
---4
-IF OBJECT_ID (N'dbo.getLevelGroup', N'FN') IS NOT NULL  
-    DROP FUNCTION dbo.getLevelGroup;  
-GO  
-CREATE FUNCTION dbo.getLevelGroup(@Level int)
-RETURNS varchar(20)
-AS
+DROP PROCEDURE IF EXISTS GuestsHigherLower
+GO
+CREATE PROCEDURE GuestsHigherLower
+@Level int, @OrHigher bit = NULL
+AS IF (@OrHigher = 1)
 BEGIN
-	DECLARE @ret varchar(20)
-	SELECT @ret = (CASE 
-	WHEN @Level < 5
-	THEN
-		'Beginner'
-	WHEN @Level BETWEEN 5 AND 10
-	THEN
-		'Intermediate'
-	WHEN @Level > 10
-	THEN
-		'Expert'
+	SELECT Guests.Name AS 'Guest', Classes.Name AS 'Class', GuestsClasses.ClassLevel AS 'Level' FROM GuestsClasses
+	JOIN Guests ON (GuestsClasses.GuestID = Guests.ID)
+	JOIN Classes ON (GuestsClasses.ClassID = Classes.ID)
+	WHERE GuestsClasses.ClassLevel >= @Level
+END
 	ELSE
-		'No Class'
-	END)
-	RETURN @ret;
-END;
+BEGIN
+	SELECT Guests.Name AS 'Guest', Classes.Name AS 'Class', GuestsClasses.ClassLevel AS 'Level' FROM GuestsClasses
+	JOIN Guests ON (GuestsClasses.GuestID = Guests.ID)
+	JOIN Classes ON (GuestsClasses.ClassID = Classes.ID)
+	WHERE GuestsClasses.ClassLevel <= @Level
+END
 
---Function in use
-SELECT Guests.Name, ISNULL(Classes.Name, 'No Class') AS 'Class', ISNULL(GuestsClasses.ClassLevel, 0) AS 'Level', dbo.getLevelGroup(GuestsClasses.ClassLevel) AS 'Label'
-FROM Guests
-LEFT JOIN GuestsClasses ON (Guests.ID = GuestsClasses.GuestID)
-LEFT JOIN Classes ON (GuestsClasses.ClassID = Classes.ID)
-ORDER BY Guests.Name ASC
+
+--4 
+DROP PROCEDURE IF EXISTS TavernDelete
+GO
+CREATE PROCEDURE TavernDelete
+@Tavern varchar(255)
+AS DELETE FROM Taverns
+WHERE Taverns.Name = @Tavern
 
 
 --5
+DROP TRIGGER IF EXISTS DeleteCleanup
+GO
+CREATE TRIGGER DeleteCleanup
+ON dbo.Taverns
+AFTER DELETE
+AS BEGIN
+DELETE FROM Inventory WHERE TavernID = (SELECT TOP 1 ID FROM DELETED);
+DELETE FROM Rooms WHERE TavernID = (SELECT TOP 1 ID FROM DELETED);
+DELETE FROM Services WHERE TavernID = (SELECT TOP 1 ID FROM DELETED);
+END
+
+
+--6
+DROP PROCEDURE IF EXISTS BookCheapestRoom
+GO
+CREATE PROCEDURE BookCheapestRoom
+@Date date
+AS 
+INSERT INTO RoomStays
+VALUES ((SELECT TOP 1 dbo.getOpenRooms.RoomID FROM dbo.getOpenRooms(@Date) ORDER BY Price), 1, @Date);
+
+/* getOpenRooms function
 IF OBJECT_ID (N'dbo.getOpenRooms', N'IF') IS NOT NULL  
     DROP FUNCTION dbo.getOpenRooms;  
 GO  
@@ -411,50 +430,21 @@ RETURNS TABLE
 AS                
 RETURN   
 (
-	SELECT DISTINCT Rooms.ID AS 'Room ID', Rooms.Price, Taverns.Name AS 'Tavern' FROM Rooms
+	SELECT DISTINCT Rooms.ID AS 'RoomID', Rooms.Price, Taverns.Name AS 'Tavern' FROM Rooms
 	LEFT JOIN Taverns ON (Rooms.TavernID = Taverns.ID)
 	LEFT JOIN RoomStays ON (Rooms.ID = RoomStays.RoomID)
 	WHERE RoomStays.DateStayed != @Date
 );
-
---Function in use
-SELECT * FROM dbo.getOpenRooms('2001-12-19')
-
-
---6
-IF OBJECT_ID (N'dbo.getPricedRooms', N'IF') IS NOT NULL  
-    DROP FUNCTION dbo.getPricedRooms;  
-GO  
-CREATE FUNCTION dbo.getPricedRooms (@minPrice decimal(6,2), @maxPrice decimal(6,2))  
-RETURNS TABLE  
-AS                
-RETURN   
-(
-	SELECT DISTINCT Rooms.ID AS 'Room ID', Rooms.Price, Rooms.TavernID, Taverns.Name AS 'Tavern Name' FROM Rooms
-	LEFT JOIN Taverns ON (Rooms.TavernID = Taverns.ID)
-	WHERE Rooms.Price BETWEEN @minPrice AND @maxPrice
-);
-
---Function in use
-SELECT * FROM dbo.getPricedRooms(66.67, 219.99)
+*/
 
 
 --7
-SELECT 'INSERT INTO Rooms' AS cheaperRoom
-UNION ALL
-SELECT CONCAT(
-	'VALUES (2,''Vacant'','
-, 
-	(CASE WHEN roomList.TavernID = 1
-	THEN
-		'2,'
-	ELSE
-		'1,'
-	END)
-,
-	(Price
-	)-0.01
-,
-	');'
-) FROM dbo.getPricedRooms(66.67, 220.00) AS roomList
-WHERE Price = (SELECT Min(Price) FROM dbo.getPricedRooms(66.67, 220.00))
+DROP TRIGGER IF EXISTS FreeServiceOnBooking
+GO
+CREATE TRIGGER FreeServiceOnBooking
+ON dbo.RoomStays
+AFTER INSERT
+AS BEGIN
+INSERT INTO ServiceSales
+VALUES (1, (SELECT TOP 1 GuestID FROM INSERTED), 1, 0.00, (SELECT TOP 1 DateStayed FROM INSERTED))
+END
