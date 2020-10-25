@@ -1,0 +1,41 @@
+body {
+    font-family: Arial, Helvetica, sans-serif;
+    background-color: gray;
+    text-shadow: 1px 1px 1px lightgray;
+    padding-top: 20px;
+}
+
+#contentBox {
+    margin: 0 auto;
+    width: 600px;
+    display: flex;
+    justify-content: center;
+    flex-direction: column;
+    text-align: center;
+    
+}
+
+#contentBox h1 {
+    font-size: 44px;
+}
+
+#contentBox p {
+    font-size: 26px;
+    font-weight: bold;
+}
+
+#contentBox li {
+    font-size: 18px;
+    font-weight: bold;
+    padding-top: 4px;
+}
+
+#imageHandShapes {
+    padding: 10px 0px 10px 0px;
+}
+
+ol {
+    margin-top: 0px;
+    margin-left: 35px;
+    text-align: start;
+}
