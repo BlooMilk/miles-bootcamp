@@ -16,11 +16,11 @@ function playGame() {
     } else if (computerThrowChoice === 2) {
       computerWinCount++;
       console.log("The player threw Rock and the computer threw Paper");
-      console.log("Result: Computer wins :(");
+      console.log("Result: Computer wins");
     } else if (computerThrowChoice === 3) {
       userWinCount++;
       console.log("The player threw Rock and the computer threw Scissors");
-      console.log("Result: Player wins!");
+      console.log("Result: Player wins");
     }
   }
 
@@ -28,7 +28,7 @@ function playGame() {
     if (computerThrowChoice === 1) {
       userWinCount++;
       console.log("The player threw Paper and the computer threw Rock");
-      console.log("Result: Player wins!");
+      console.log("Result: Player wins");
     } else if (computerThrowChoice === 2) {
       tieCount++;
       console.log("The player threw Paper and the computer threw Paper");
@@ -36,7 +36,7 @@ function playGame() {
     } else if (computerThrowChoice === 3) {
       computerWinCount++;
       console.log("The player threw Paper and the computer threw Scissors");
-      console.log("Result: Computer wins :(");
+      console.log("Result: Computer wins");
     }
   }
 
@@ -44,11 +44,11 @@ function playGame() {
     if (computerThrowChoice === 1) {
       computerWinCount++;
       console.log("The player threw Scissors and the computer threw Rock");
-      console.log("Result: Computer wins :(");
+      console.log("Result: Computer wins");
     } else if (computerThrowChoice === 2) {
       userWinCount++;
       console.log("The player threw Scissors and the computer threw Paper");
-      console.log("Result: Player wins!");
+      console.log("Result: Player wins");
     } else if (computerThrowChoice === 3) {
       tieCount++;
       console.log("The player threw Scissors and the computer threw Scissors");
@@ -101,5 +101,9 @@ function playGame() {
     console.log("The computer wins! Better luck next time :(");
   } else {
     console.log("Its a tie!");
+  }
+
+  if (confirm("Would you like to play again?")) {
+    playGame();
   }
 }

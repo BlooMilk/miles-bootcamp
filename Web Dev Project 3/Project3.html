@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Simple Calculator</title>
+    <link rel="stylesheet" href="Project3.css" />
+  </head>
+  <body>
+    <div id="boxCenteredContents">
+      <form id="formUserInputs">
+        <div id="boxNumberInputs">
+          <div id="boxFirstNumber">
+            <label class="number-label" for="firstNumber">First Number</label
+            ><br />
+            <input
+              type="number"
+              id="firstNumber"
+              name="firstNumber"
+              autofocus
+              required
+            />
+          </div>
+          <div id="boxSecondNumber">
+            <label class="number-label" for="secondNumber">Second Number</label
+            ><br />
+            <input
+              type="number"
+              id="secondNumber"
+              name="secondNumber"
+              required
+            />
+          </div>
+        </div>
+        <div id="boxOperatorChoice">
+          <label class="radio-label" for="radioAdd">
+            <input
+              type="radio"
+              id="radioAdd"
+              name="operator"
+              value="add"
+              checked
+            />
+            <span>Add</span>
+          </label>
+          <label class="radio-label" for="radioSubtract">
+            <input
+              type="radio"
+              id="radioSubtract"
+              name="operator"
+              value="subtract"
+            />
+            <span>Subtract</span>
+          </label>
+          <label class="radio-label" for="radioMultiply">
+            <input
+              type="radio"
+              id="radioMultiply"
+              name="operator"
+              value="multiply"
+            />
+            <span>Multiply</span>
+          </label>
+          <label class="radio-label" for="radioDivide">
+            <input
+              type="radio"
+              id="radioDivide"
+              name="operator"
+              value="divide"
+            />
+            <span>Divide</span>
+          </label>
+        </div>
+        <div id="boxButtons">
+          <input id="buttonSubmit" type="button" value="=" />
+          <input id="buttonReset" type="reset" value="Clear" />
+        </div>
+      </form>
+      <p id="textOutput"></p>
+    </div>
+    <script src="Project3.js"></script>
+  </body>
+</html>
