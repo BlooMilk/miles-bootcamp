@@ -39,7 +39,9 @@
               value="add"
               checked
             />
-            <span>Add</span>
+            <div class="radio-background" id="boxAddBackground">
+              <span>Add</span>
+            </div>
           </label>
           <label class="radio-label" for="radioSubtract">
             <input
@@ -48,7 +50,9 @@
               name="operator"
               value="subtract"
             />
-            <span>Subtract</span>
+            <div class="radio-background" id="boxSubtractBackground">
+              <span>Subtract</span>
+            </div>
           </label>
           <label class="radio-label" for="radioMultiply">
             <input
@@ -57,7 +61,9 @@
               name="operator"
               value="multiply"
             />
-            <span>Multiply</span>
+            <div class="radio-background" id="boxMultiplyBackground">
+              <span>Multiply</span>
+            </div>
           </label>
           <label class="radio-label" for="radioDivide">
             <input
@@ -66,15 +72,27 @@
               name="operator"
               value="divide"
             />
-            <span>Divide</span>
+            <div class="radio-background" id="boxDivideBackground">
+              <span>Divide</span>
+            </div>
           </label>
         </div>
         <div id="boxButtons">
-          <input id="buttonSubmit" type="button" value="=" />
-          <input id="buttonReset" type="reset" value="Clear" />
+          <input
+            class="input-button"
+            id="buttonSubmit"
+            type="button"
+            value="="
+          />
+          <input
+            class="input-button"
+            id="buttonReset"
+            type="reset"
+            value="Clear"
+          />
         </div>
       </form>
-      <p id="textOutput"></p>
+      <p id="textOutput">&zwnj;</p>
     </div>
     <script src="Project3.js"></script>
   </body>
