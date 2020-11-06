@@ -32,7 +32,3 @@ function resetOutput() {
   document.getElementById("textOutput").innerHTML = "&zwnj;";
   document.getElementById("firstNumber").focus();
 }
-
-document.getElementById("buttonSubmit").addEventListener("click", doSomeMath);
-
-document.getElementById("buttonReset").addEventListener("click", resetOutput);

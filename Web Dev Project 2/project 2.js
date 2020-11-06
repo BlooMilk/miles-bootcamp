@@ -40,7 +40,7 @@ function playGame() {
     }
   }
 
-  function userThrowsScissor() {
+  function userThrowsScissors() {
     if (computerThrowChoice === 1) {
       computerWinCount++;
       console.log("The player threw Scissors and the computer threw Rock");
@@ -77,7 +77,7 @@ function playGame() {
           } else if (userThrowChoice.toLowerCase() === "paper") {
             userThrowsPaper();
           } else if (userThrowChoice.toLowerCase() === "scissors") {
-            userThrowsScissor();
+            userThrowsScissors();
           } else {
             console.log("That was not a valid choice, please try again.");
             getUserThrowChoice();
